@@ -41,7 +41,6 @@
     "apollo-codegen-typescript-legacy": "file:packages/apollo-codegen-typescript-legacy",
     "apollo-language-server": "file:packages/apollo-language-server",
     "apollo-vscode": "file:packages/apollo-vscode",
-    "apollo-vscode-webview": "file:packages/apollo-vscode-webview",
     "webpack-command": "^0.4.1"
   },
   "devDependencies": {
