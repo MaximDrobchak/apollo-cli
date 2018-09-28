@@ -115,6 +115,9 @@ connection.onInitialize(async params => {
         resolveProvider: false,
         triggerCharacters: ["..."]
       },
+      codeLensProvider: {
+        resolveProvider: false
+      },
       textDocumentSync: documents.syncKind
     }
   };
@@ -216,6 +219,10 @@ connection.onCompletion((params, token) => {
     params.position,
     token
   );
+});
+
+connection.onCodeLens((params, token) => {
+  return languageProvider.provideCodeLenses(params.textDocument.uri, token);
 });
 
 connection.listen();

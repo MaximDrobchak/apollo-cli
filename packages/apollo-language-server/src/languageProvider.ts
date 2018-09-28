@@ -5,6 +5,8 @@ import {
   CompletionItem,
   Hover,
   Definition,
+  CodeLens,
+  Command,
   ReferenceContext,
   InsertTextFormat
 } from "vscode-languageserver";
@@ -38,6 +40,7 @@ import {
 import { highlightNodeForNode } from "./utilities/graphql";
 import * as graphql from "graphql";
 
+import Uri from "vscode-uri";
 import { resolve } from "path";
 
 function hasFields(type: graphql.GraphQLType): boolean {
@@ -371,5 +374,68 @@ ${argumentNode.description}
     }
 
     return null;
+  }
+
+  async provideCodeLenses(
+    uri: DocumentUri,
+    _token: CancellationToken
+  ): Promise<CodeLens[]> {
+    const project = this.workspace.projectForFile(uri);
+    if (!project) return [];
+
+    await project.readyPromise;
+
+    const docsAndSets = project.documentsAt(uri);
+    if (!docsAndSets) return [];
+
+    let codeLenses: CodeLens[] = [];
+
+    for (const { doc } of docsAndSets) {
+      if (!doc.ast) continue;
+
+      for (const definition of doc.ast.definitions) {
+        if (definition.kind === Kind.FRAGMENT_DEFINITION) {
+          const references = project.fragmentSpreadsForFragment(
+            definition.name.value
+          );
+          const locs = references.reduce(
+            (locations, fragmentSpread) => {
+              if (fragmentSpread.loc) {
+                locations.push({
+                  uri: Uri.parse(
+                    convertToURI(fragmentSpread.loc.source.name, project)
+                  ) as any,
+                  range: {
+                    startLineNumber:
+                      rangeForASTNode(fragmentSpread).start.line + 1,
+                    startColumn: rangeForASTNode(fragmentSpread).start
+                      .character,
+                    endLineNumber: rangeForASTNode(fragmentSpread).end.line + 1,
+                    endColumn: rangeForASTNode(fragmentSpread).end.character
+                  } as any
+                });
+              }
+              return locations;
+            },
+            [] as Location[]
+          );
+
+          codeLenses.push({
+            range: rangeForASTNode(definition),
+            command: Command.create(
+              `${references.length} references`,
+              "editor.action.showReferences",
+              Uri.parse(uri),
+              {
+                lineNumber: rangeForASTNode(definition).start.line + 1,
+                column: rangeForASTNode(definition).start.character
+              },
+              locs
+            )
+          });
+        }
+      }
+    }
+    return codeLenses;
   }
 }
